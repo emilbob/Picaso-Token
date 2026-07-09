@@ -1,4 +1,3 @@
-
 ## Vault context
 Studio memory lives at `~/Documents/Emil-Dev-Vault`. Before non-trivial work, read:
 1. `Projects/Blockchain/Picaso-Token/Picaso-Token - Overview.md` — what this project is
