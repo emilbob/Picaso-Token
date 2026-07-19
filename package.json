@@ -22,7 +22,7 @@
     "@typechain/ethers-v5": "^7.0.1",
     "@typechain/hardhat": "^2.0.2",
     "@types/mocha": "^9.0.0",
-    "@types/node": "^16.7.10",
+    "@types/node": "^26.1.1",
     "chai": "^4.3.4",
     "dotenv": "^10.0.0",
     "ethereum-waffle": "^3.4.0",
