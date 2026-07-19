@@ -1,0 +1,31 @@
+name: Open PR for milestone branches
+
+# Cloud agents push milestone/* proposal branches; they never touch main.
+# This opens the PR assigned to the repo owner — merging is the approval.
+on:
+  push:
+    branches: ["milestone/**"]
+
+permissions:
+  pull-requests: write
+  contents: read
+
+jobs:
+  pr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          branch="${GITHUB_REF_NAME}"
+          if [ -n "$(gh pr list --head "$branch" --json number --jq '.[].number')" ]; then
+            echo "PR already open for $branch"
+            exit 0
+          fi
+          title=$(git log -1 --format=%s)
+          body=$(git log -1 --format=%b)
+          gh pr create --base main --head "$branch" \
+            --title "$title" \
+            --body "${body:-Automated milestone proposal — see diff.}" \
+            --assignee "${GITHUB_REPOSITORY_OWNER}"
