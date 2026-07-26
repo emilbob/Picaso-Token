@@ -20,6 +20,13 @@ export default defineConfig({
       chainType: "l1",
     },
 
+    // The chain `npm run node` serves. The frontend talks to this by default.
+    localhost: {
+      type: "http",
+      chainType: "l1",
+      url: "http://127.0.0.1:8545",
+    },
+
     // Optional live network. `configVariable` resolves lazily from the
     // environment or the Hardhat keystore, so an unset value costs nothing
     // until you actually target this network — unlike the Hardhat 2 config

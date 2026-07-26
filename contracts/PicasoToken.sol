@@ -185,6 +185,17 @@ contract PicasoToken is ERC721, ReentrancyGuard {
         return _ownerOf(_tokenId) != address(0);
     }
 
+    /**
+     * @notice How many positions have ever been minted, burned ones included.
+     * @dev Ids are assigned sequentially from zero, so this is the exclusive
+     * upper bound for enumerating positions. The contract does not implement
+     * ERC721Enumerable, so without this a client has no way to enumerate at all.
+     * @return The next id that will be assigned.
+     */
+    function totalMinted() external view returns (uint256) {
+        return nextTokenId;
+    }
+
     /// @notice The Bancor network contract this instance currently resolves to.
     function getBancorNetworkContract() external view returns (IBancorNetwork) {
         return IBancorNetwork(CONTRACT_REGISTRY.addressOf(BANCOR_NETWORK_NAME));

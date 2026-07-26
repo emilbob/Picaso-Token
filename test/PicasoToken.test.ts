@@ -340,6 +340,22 @@ describe("PicasoToken", () => {
   });
 
   describe("views", () => {
+    it("tracks totalMinted across mints and burns", async () => {
+      const ctx = await deployFixture();
+      const { picaso, target, holder } = ctx;
+
+      expect(await picaso.totalMinted()).to.equal(0n);
+
+      const first = await createPosition(ctx);
+      await createPosition(ctx);
+      expect(await picaso.totalMinted()).to.equal(2n);
+
+      // Burning does not rewind the counter — ids stay unique, so it remains a
+      // valid exclusive upper bound for enumeration.
+      await picaso.connect(holder).liquidateNft(first, await target.getAddress(), DEPOSIT);
+      expect(await picaso.totalMinted()).to.equal(2n);
+    });
+
     it("revert for a non-existent position", async () => {
       const { picaso } = await deployFixture();
       await expect(picaso.getTokenAddressForToken(1n)).to.be.revertedWithCustomError(

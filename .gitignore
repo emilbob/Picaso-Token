@@ -12,3 +12,8 @@ typechain
 .env
 .env.*
 !.env.example
+
+# Next.js
+frontend/.next
+frontend/out
+frontend/next-env.d.ts

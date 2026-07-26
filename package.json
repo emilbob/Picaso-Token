@@ -4,6 +4,9 @@
   "description": "Collateralized-NFT demo: deposit an ERC20 to mint a PicasoToken NFT, burn it to redeem through Bancor.",
   "type": "module",
   "license": "ISC",
+  "workspaces": [
+    "frontend"
+  ],
   "author": "emilbob",
   "keywords": [
     "solidity",
@@ -13,9 +16,15 @@
     "hardhat"
   ],
   "scripts": {
-    "build": "hardhat clean && hardhat compile",
+    "build": "npm run build:contracts && npm run gen && npm run build:frontend",
+    "build:contracts": "hardhat clean && hardhat compile",
+    "build:frontend": "npm --workspace frontend run build",
+    "gen": "node scripts/export-abi.mjs",
     "compile": "hardhat compile",
     "clean": "hardhat clean",
+    "dev": "npm --workspace frontend run dev",
+    "node": "hardhat node",
+    "deploy:local": "hardhat run scripts/deploy-demo.ts --network localhost",
     "test": "hardhat test",
     "coverage": "hardhat test --coverage",
     "gas": "hardhat test --gas-stats",
