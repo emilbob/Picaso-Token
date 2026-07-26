@@ -3,4 +3,7 @@ artifacts
 typechain
 node_modules
 docs/
-env
+dist
+.env
+.env.*
+!.env.example

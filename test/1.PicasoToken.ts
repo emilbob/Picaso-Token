@@ -9,7 +9,16 @@ const { expect } = chai;
 
 const hre = require("hardhat");
 
-describe("PicasoToken", () => {
+// Every test here runs against a mainnet fork: it impersonates a hardcoded
+// whale and calls the real USDT, SUSHI and Bancor contracts. Without an
+// archive node they don't fail meaningfully, they just can't run — so skip
+// them rather than report a red suite. Note that even with a key these are
+// unlikely to pass today: Archivenode is gone and Bancor has changed since
+// 2023. See README.md.
+const canFork = Boolean(process.env.ARCHIVENODE_API_KEY);
+const describeFork = canFork ? describe : describe.skip;
+
+describeFork("PicasoToken", () => {
   let signers: any;
 
   let picasoToken: PicasoToken;
