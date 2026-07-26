@@ -24,8 +24,8 @@ never gone green on this repo since the workflow was added.
 
 **Confirmed live secret exposure — action needed, not just cleanup:**
 1. `hardhat.config.ts:21` hardcodes the `hardhat.forking.url` as
-   `https://api.archivenode.io/70qv2ve2ii2sxemysiks0670qv2vp6oh` — the path segment
-   `70qv2ve2ii2sxemysiks0670qv2vp6oh` is a live Archivenode API key, committed in plaintext
+   `https://api.archivenode.io/<32-char-key>` — that path segment
+   was a live Archivenode API key (elided here; see the pre-M1 history), committed in plaintext
    on `main` **today**, not just in history. Every CI run and every local `hardhat compile`/
    fork attempt sends this key to a third party.
 2. `.env` is tracked in git (`git ls-files` confirms) because `.gitignore` lists `env`
@@ -45,7 +45,18 @@ community deprecated it in late 2022; it cannot be used to validate anything tod
 `convertByPath` before `_burn`), and reserve accounting is unaudited per Emil's own notes.
 Not a finding to fix here — relevant only to the verdict below.
 
-## Verdict: **archive-properly**
+## Verdict: ~~archive-properly~~ → **modernize** (superseded 2026-07-26)
+
+> **This verdict was overturned by the repository owner after M1 shipped.** The reasoning
+> below was sound on cost, but it weighed that cost against a demo assumed to be inert —
+> and the M1 review turned up defects that made inertness the wrong frame. A public
+> repository presented as a reference implementation of the deposit-NFT pattern was
+> teaching an ownership hole and a fund-stranding bug to anyone who copied it. Archiving
+> would have frozen those in place with a note; fixing them removes them. M2 below does
+> that, and the "moving upstream protocol" objection dissolved once the tests were rebuilt
+> against a mock Bancor rather than the live one. The repo is **not** archived.
+
+### Original verdict (retained for the record): archive-properly
 
 This is a single-contract, unaudited teaching/portfolio demo, not a maintained product —
 nothing currently depends on it working. Modernizing the toolchain (Hardhat 2.6→latest,
@@ -93,8 +104,32 @@ a project no one intends to operate.
   `hardhat.config.ts` contains no literal API keys or tokens; `README.md` exists and
   `README.txt` is removed; `npx hardhat compile` still succeeds locally (network-independent,
   since forking config now reads from env and is unset in this environment).
-  After M1 merges: Emil archives the repository on GitHub (Settings → Archive this
-  repository) — no further milestones follow.
+  ~~After M1 merges: Emil archives the repository on GitHub — no further milestones follow.~~
+  The repo was archived on 2026-07-26 and **unarchived the same day** when the verdict was
+  overturned in favour of M2.
+
+- [x] M2: Modernize the toolchain and fix the contract.
+  **Done 2026-07-26.** Scope and outcome:
+  - **Toolchain:** Hardhat 2.6 + `hardhat-waffle` + ethers v5 + OZ 4.3 + TS 4.3 →
+    Hardhat 3.11 + `@nomicfoundation/hardhat-toolbox-mocha-ethers` + ethers v6 + OZ 5.6 +
+    TS 5.6, ESM throughout. Solidity 0.8.2 → 0.8.28 with the optimizer on. Dead `ropsten`,
+    `solc-0.8`, `solidity-docgen` and `hardhat-docgen` removed; `sepolia` added behind
+    `configVariable`, which resolves lazily and so cannot reproduce M1's HH8 failure.
+    `Interfaces/` moved under `contracts/interfaces/`. npm advisories 175 → 29, criticals
+    60 → 0.
+  - **Contract:** all six defects recorded in M1's README are fixed — ownership check on
+    `liquidateNft`, proceeds paid to the caller instead of stranded in the contract, the
+    caller's `minReturn` honoured as the real slippage floor, `forceApprove` in place of
+    `safeApprove`, positions cleared on burn, plus `ReentrancyGuard`, events, custom errors,
+    and removal of the ignored `payable`. Added fee-on-transfer safety: the position records
+    what actually arrived, not what was requested.
+  - **Tests:** the fork suite (impersonated whale, live USDT/SUSHI, a 2023 Bancor rate) is
+    replaced by 23 hermetic tests against `MockBancorNetwork`, `MockContractRegistry`,
+    `MockERC20` and `MockFeeOnTransferERC20`. No network, no credentials.
+  - **Quality:** solhint clean (0 errors, 0 warnings), `LICENSE` added to back the ISC claim
+    in `package.json`, Dependabot npm updates re-enabled now the toolchain is current.
+  Acceptance: `npm ci && npm run build && npm test && npm run lint` all green;
+  **100.00% line and statement coverage of `contracts/PicasoToken.sol`**.
 
 ## Not covered by M1 — needs Emil's direct action
 

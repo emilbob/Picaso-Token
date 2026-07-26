@@ -1,17 +1,15 @@
 {
   "compilerOptions": {
-    "target": "es2018",
-    "module": "commonjs",
+    "target": "es2022",
+    "module": "node18",
+    "moduleResolution": "node16",
     "strict": true,
     "esModuleInterop": true,
-    "outDir": "dist",
-    "resolveJsonModule": true
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "noEmit": true,
+    "types": ["node", "mocha"]
   },
-  "include": [
-    "./scripts",
-    "./test"
-  ],
-  "files": [
-    "./hardhat.config.ts"
-  ]
+  "include": ["hardhat.config.ts", "scripts/**/*.ts", "test/**/*.ts"]
 }

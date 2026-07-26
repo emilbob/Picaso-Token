@@ -1,0 +1,3 @@
+node_modules/
+# Test-only doubles — full NatSpec on mocks is noise, not documentation.
+contracts/mocks/
