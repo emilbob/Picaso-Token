@@ -66,7 +66,16 @@ a project no one intends to operate.
 
 ## Milestones
 
-- [ ] M1: Archive prep — scrub config, write a real README, freeze the toolchain notes.
+- [x] M1: Archive prep — scrub config, write a real README, freeze the toolchain notes.
+  **Done 2026-07-26 in #9.** All acceptance criteria met: `.env` untracked, `.gitignore`
+  matches `.env`, no literal keys in `hardhat.config.ts`, `README.md` replaces `README.txt`,
+  and `hardhat compile` succeeds unconfigured. Two fixes beyond the stated scope were needed
+  to get there: the clean-clone build was already broken (`Error HH8` — `.env` was
+  interpolated unconditionally, so a blank file made the config invalid), and
+  `hardhat-typechain` had to go (deprecated, duplicated by `@typechain/hardhat`, and its
+  `typechain@^4` peer was the ERESOLVE failing every grouped Dependabot PR). The fork tests
+  now skip unless `ARCHIVENODE_API_KEY` is set rather than failing. `keep-green` went green
+  on `main` for the first time (run `30218560058`).
   Scope:
   - Fix `.gitignore` (`env` → `.env`) and remove `.env` from the tracked tree (keep
     `.env.example` as the placeholder template, values already blank).
