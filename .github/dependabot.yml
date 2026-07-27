@@ -1,5 +1,21 @@
 version: 2
 updates:
+  # npm updates were off while the toolchain was a 2023 fossil the roadmap owned.
+  # M2 modernised it, so grouped patch/minor bumps are worth taking again.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      minor-and-patch:
+        applies-to: version-updates
+        update-types:
+          - minor
+          - patch
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

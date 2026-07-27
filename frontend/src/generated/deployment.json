@@ -1,0 +1,10 @@
+{
+  "chainId": 0,
+  "deployedAt": null,
+  "contracts": {
+    "picasoToken": null,
+    "bancorNetwork": null,
+    "contractRegistry": null
+  },
+  "tokens": []
+}

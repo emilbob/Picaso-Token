@@ -1,9 +1,19 @@
-cache
-artifacts
-typechain
 node_modules
-docs/
-dist
+
+# Hardhat build output
+artifacts
+cache
+coverage
+types
+typechain
+
+# Secrets — note the leading dot: a bare `env` line never matches `.env`,
+# which is how this repo leaked credentials from 2023 until 2026.
 .env
 .env.*
 !.env.example
+
+# Next.js
+frontend/.next
+frontend/out
+frontend/next-env.d.ts

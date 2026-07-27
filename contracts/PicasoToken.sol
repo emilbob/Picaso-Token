@@ -1,174 +1,203 @@
 // SPDX-License-Identifier: ISC
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "Interfaces/IBancor.sol";
+import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IBancorNetwork, IContractRegistry} from "./interfaces/IBancor.sol";
 
 /**
  * @title Picaso Token
  * @author Emil Bob
- * @notice Contract that allows creating and burning a NFT token.
+ * @notice An ERC721 position backed by an ERC20 deposit. Depositing an ERC20
+ * mints an NFT recording that position; burning the NFT swaps the deposit
+ * through Bancor and returns the proceeds to the holder.
+ * @dev Unaudited demonstration code. The reserve accounting is only as sound
+ * as the Bancor integration it delegates pricing to.
  */
-
-contract PicasoToken is ERC721 {
+contract PicasoToken is ERC721, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    uint256 internal tokenId;
-    mapping(uint256 => PicToken) positions;
+    /// @notice The ERC20 deposit backing a given token id.
     struct PicToken {
         address tokenAddress;
         uint256 tokenAmount;
     }
 
-    IContractRegistry contractRegistry;
-    bytes32 bancorNetworkName = bytes32("BancorNetwork");
+    bytes32 private constant BANCOR_NETWORK_NAME = bytes32("BancorNetwork");
 
-    function getBancorNetworkContract() public returns (IBancorNetwork) {
-        return IBancorNetwork(contractRegistry.addressOf(bancorNetworkName));
+    IContractRegistry private immutable CONTRACT_REGISTRY;
+
+    uint256 private nextTokenId;
+
+    mapping(uint256 tokenId => PicToken position) private positions;
+
+    /**
+     * @notice Emitted when a deposit mints a new position.
+     * @param tokenId The id of the minted position.
+     * @param owner The account that deposited and received the NFT.
+     * @param tokenAddress The deposited ERC20.
+     * @param tokenAmount The amount actually received by this contract.
+     */
+    event NftCreated(
+        uint256 indexed tokenId,
+        address indexed owner,
+        address indexed tokenAddress,
+        uint256 tokenAmount
+    );
+
+    /**
+     * @notice Emitted when a position is burned and its deposit swapped out.
+     * @param tokenId The id of the burned position.
+     * @param owner The account that liquidated and received the proceeds.
+     * @param targetToken The ERC20 the deposit was swapped into.
+     * @param returnAmount The amount of `targetToken` sent to `owner`.
+     */
+    event NftLiquidated(
+        uint256 indexed tokenId,
+        address indexed owner,
+        address indexed targetToken,
+        uint256 returnAmount
+    );
+
+    error ZeroAddress();
+    error ZeroAmount();
+    error NotTokenOwner(uint256 tokenId, address caller);
+    error InsufficientReturn(uint256 available, uint256 expected);
+
+    /**
+     * @notice Records the Bancor contract registry this instance prices against.
+     * @param _contractRegistryAddress Bancor's `IContractRegistry` on the target network.
+     */
+    constructor(address _contractRegistryAddress) ERC721("Picaso Token", "PCT") {
+        if (_contractRegistryAddress == address(0)) revert ZeroAddress();
+        CONTRACT_REGISTRY = IContractRegistry(_contractRegistryAddress);
     }
 
     /**
-     * @notice Constructor declares a token name and symbol.
-     *
-     * @dev Constructor takes an address of proper test network.
-     *
-     * @param _contractRegistryAddress represents a test a network, it can be a mainnet net or testnet.
+     * @notice Deposits an ERC20 and mints an NFT representing that position.
+     * @dev Requires the caller to have approved this contract for `_tokenAmount`
+     * of `_tokenAddress` beforehand.
+     * @param _tokenAddress The ERC20 to deposit.
+     * @param _tokenAmount The amount to deposit.
+     * @return tokenId The id of the freshly minted position.
      */
-
-    constructor(address _contractRegistryAddress)
-        ERC721("Picaso Token", "PCT")
-    {
-        contractRegistry = IContractRegistry(_contractRegistryAddress);
-    }
-
-    /**
-     * @notice This function is used for creatnig an NFT by depositing certain
-     * amount of desired ERC20 token on contract.
-     *
-     * @param _tokenAddress represents an address of desired ERC20 token to deposit.
-     *
-     * @param _tokenAmount represents an amount of desired ERC20 token to deposit.
-     *
-     * Function will revert if ERC20 token doesn't give approval for the contract to
-     * withdraw the money, and if  the amount that is aproved by token isn't enough.
-     */
-
     function createNft(address _tokenAddress, uint256 _tokenAmount)
         external
-        payable
+        nonReentrant
+        returns (uint256 tokenId)
     {
-        IERC20(_tokenAddress).safeTransferFrom(
-            msg.sender,
-            address(this),
-            _tokenAmount
-        );
+        if (_tokenAddress == address(0)) revert ZeroAddress();
+        if (_tokenAmount == 0) revert ZeroAmount();
 
-        positions[tokenId].tokenAddress = _tokenAddress;
-        positions[tokenId].tokenAmount = _tokenAmount;
+        // Measure what actually arrived rather than trusting `_tokenAmount`, so
+        // fee-on-transfer tokens cannot mint a position claiming more collateral
+        // than the contract received.
+        uint256 balanceBefore = IERC20(_tokenAddress).balanceOf(address(this));
+        IERC20(_tokenAddress).safeTransferFrom(msg.sender, address(this), _tokenAmount);
+        uint256 received = IERC20(_tokenAddress).balanceOf(address(this)) - balanceBefore;
+        if (received == 0) revert ZeroAmount();
 
-        _mint(msg.sender, tokenId++);
+        tokenId = nextTokenId++;
+        positions[tokenId] = PicToken({tokenAddress: _tokenAddress, tokenAmount: received});
+
+        _safeMint(msg.sender, tokenId);
+
+        emit NftCreated(tokenId, msg.sender, _tokenAddress, received);
     }
 
     /**
-     * @notice This function is used for burning the NFT and withdraving desired
-     * amount of desired ERC20 token that is less or equal than deposited ERC20 token on contract.
-     *
-     * @param _tokenId Is a number dedicated to the NFT token, an unique identifier,
-     * used for selecting ceratin NFT.
-     *
-     * @param _tokenAddress represents an addrress of desired ERC20 token to withdraw.
-     *
-     * @param _expectedAmount represents an amount that user expects to withdraw.
-     *
-     * @param _returnAmount represents the amount that can be withdrawn.
-     *
-     * Function will revert for non-existing NFT and if the expected amount is greater
-     * than minimal possible return. The Swap beetween ERC20 tokens uses bancor protocol.
+     * @notice Burns a position and swaps its deposit for `_targetToken` via Bancor,
+     * sending the proceeds to the caller.
+     * @dev Only the position's owner may liquidate it. `_minReturn` is the caller's
+     * slippage floor and is passed straight to Bancor — the quote is used only to
+     * reject the swap early, never to replace the caller's floor.
+     * @param _tokenId The position to liquidate.
+     * @param _targetToken The ERC20 to receive.
+     * @param _minReturn The minimum acceptable amount of `_targetToken`.
+     * @return returnAmount The amount of `_targetToken` sent to the caller.
      */
+    function liquidateNft(uint256 _tokenId, address _targetToken, uint256 _minReturn)
+        external
+        nonReentrant
+        returns (uint256 returnAmount)
+    {
+        address owner = _requireOwned(_tokenId);
+        if (owner != msg.sender) revert NotTokenOwner(_tokenId, msg.sender);
+        if (_targetToken == address(0)) revert ZeroAddress();
 
-    function liquidateNft(
-        uint256 _tokenId,
-        address _tokenAddress,
-        uint256 _expectedAmount
-    ) external returns (uint256 _returnAmount) {
-        require(_exists(_tokenId), "Expected NFT doesn't exists");
+        PicToken memory position = positions[_tokenId];
 
-        uint256 nftAmount = positions[_tokenId].tokenAmount;
-        address nftAddress = positions[_tokenId].tokenAddress;
+        IBancorNetwork bancorNetwork =
+            IBancorNetwork(CONTRACT_REGISTRY.addressOf(BANCOR_NETWORK_NAME));
 
-        IBancorNetwork bancorNetwork = IBancorNetwork(
-            contractRegistry.addressOf(bancorNetworkName)
-        );
+        address[] memory path = bancorNetwork.conversionPath(position.tokenAddress, _targetToken);
 
-        address[] memory path = bancorNetwork.conversionPath(
-            nftAddress,
-            _tokenAddress
-        );
+        uint256 quote = bancorNetwork.rateByPath(path, position.tokenAmount);
+        if (quote < _minReturn) revert InsufficientReturn(quote, _minReturn);
 
-        uint256 minReturn = bancorNetwork.rateByPath(path, nftAmount);
+        // Burn and clear before the external call: the position must not survive
+        // a reentrant path, and the state is no longer needed for the swap.
+        delete positions[_tokenId];
+        _burn(_tokenId);
 
-        require(minReturn >= _expectedAmount, "Expentemed amount to high");
+        IERC20(position.tokenAddress).forceApprove(address(bancorNetwork), position.tokenAmount);
 
-        IERC20(nftAddress).safeApprove(address(bancorNetwork), nftAmount);
-
-        _returnAmount = bancorNetwork.convertByPath(
+        returnAmount = bancorNetwork.convertByPath(
             path,
-            nftAmount,
-            minReturn,
-            address(0),
+            position.tokenAmount,
+            _minReturn,
+            msg.sender, // beneficiary — proceeds go to the holder, not this contract
             address(0),
             0
         );
 
-        _burn(_tokenId);
+        emit NftLiquidated(_tokenId, msg.sender, _targetToken, returnAmount);
     }
 
     /**
-     * @notice This function is used for getting an address of.
-     * certain NFT token by providing an unique identifier,
-     *
-     * @param _tokenId stands for unique identifier of certain NFT token.
-     *
-     * Function will revert for non-existing NFT
+     * @notice The ERC20 backing a position. Reverts if the position does not exist.
+     * @param _tokenId The position to look up.
+     * @return The deposited ERC20's address.
      */
-
-    function getTokenAddressForToken(uint256 _tokenId)
-        external
-        view
-        returns (address)
-    {
-        require(_exists(_tokenId), "Expected NFT doesn't exists");
-
+    function getTokenAddressForToken(uint256 _tokenId) external view returns (address) {
+        _requireOwned(_tokenId);
         return positions[_tokenId].tokenAddress;
     }
 
     /**
-     * @notice This function is used for getting an amount of.
-     * certain NFT token by providing a unique identifier,
-     *
-     * @param _tokenId stands for unique identifier of certain NFT token.
-     *
-     * Function will revert for non-existing NFT
+     * @notice The deposited amount backing a position. Reverts if it does not exist.
+     * @param _tokenId The position to look up.
+     * @return The amount of the deposited ERC20 held against this position.
      */
-
-    function getTokenAmountForToken(uint256 _tokenId)
-        external
-        view
-        returns (uint256)
-    {
-        require(_exists(_tokenId), "Expected NFT doesn't exists");
+    function getTokenAmountForToken(uint256 _tokenId) external view returns (uint256) {
+        _requireOwned(_tokenId);
         return positions[_tokenId].tokenAmount;
     }
 
     /**
-     * @notice This function is checking if the certain NFT exists.
-     *
-     * @param _tokenId stands for unique identifier of certain NFT token.
+     * @notice Whether a position currently exists.
+     * @param _tokenId The position to check.
+     * @return True while the NFT is minted and unburned.
      */
-
     function exists(uint256 _tokenId) external view returns (bool) {
-        return _exists(_tokenId);
+        return _ownerOf(_tokenId) != address(0);
+    }
+
+    /**
+     * @notice How many positions have ever been minted, burned ones included.
+     * @dev Ids are assigned sequentially from zero, so this is the exclusive
+     * upper bound for enumerating positions. The contract does not implement
+     * ERC721Enumerable, so without this a client has no way to enumerate at all.
+     * @return The next id that will be assigned.
+     */
+    function totalMinted() external view returns (uint256) {
+        return nextTokenId;
+    }
+
+    /// @notice The Bancor network contract this instance currently resolves to.
+    function getBancorNetworkContract() external view returns (IBancorNetwork) {
+        return IBancorNetwork(CONTRACT_REGISTRY.addressOf(BANCOR_NETWORK_NAME));
     }
 }

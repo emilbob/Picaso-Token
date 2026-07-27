@@ -1,0 +1,11 @@
+{
+  "extends": "solhint:recommended",
+  "rules": {
+    "compiler-version": ["error", "^0.8.28"],
+    "func-visibility": ["error", { "ignoreConstructors": true }],
+    "max-line-length": ["error", 100],
+    "no-empty-blocks": "off",
+    "gas-custom-errors": "off",
+    "gas-increment-by-one": "off"
+  }
+}

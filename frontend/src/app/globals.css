@@ -1,0 +1,158 @@
+@import "tailwindcss";
+
+/* BLUEPRINT — an architect's drawing set on warm paper.
+   Paper not white, ink not black; two typefaces with two jobs. */
+@theme {
+  --color-paper: #f4f3ef;
+  --color-bone: #eceae4;
+  --color-ink: #111110;
+  --color-graphite: #3a3a37;
+  --color-ash: #8a8a83;
+  --color-line: #d6d4cc;
+  --color-blueprint: #1d3a8a;
+
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "Space Mono", "SFMono-Regular", ui-monospace, Menlo, monospace;
+
+  --tracking-tightest: -0.04em;
+  --tracking-label: 0.18em;
+  --tracking-widest: 0.3em;
+
+  --ease-arch: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  color-scheme: light;
+}
+
+html {
+  background-color: var(--color-paper);
+}
+
+body {
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv01";
+  overflow-x: hidden;
+}
+
+::selection {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+}
+
+/* The recurring tiny machine label — used everywhere a UI element "speaks". */
+.label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-widest);
+  color: var(--color-ash);
+  line-height: 1;
+}
+
+/* The latent 80px substrate. Faint, never decorative. */
+.bg-arch-grid {
+  background-image:
+    linear-gradient(to right, var(--color-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+  background-size: 80px 80px;
+}
+
+@media (max-width: 640px) {
+  .bg-arch-grid {
+    background-size: 48px 48px;
+  }
+}
+
+/* Display type: huge, weight 500, set tight. */
+.display {
+  font-weight: 500;
+  letter-spacing: var(--tracking-tightest);
+  line-height: 0.86;
+}
+
+/* Inputs read as ruled fields on the sheet, not as chrome. */
+.field {
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--color-line);
+  padding: 0.6rem 0;
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  transition: border-color 0.5s var(--ease-arch);
+}
+
+.field:focus {
+  outline: none;
+  border-bottom-color: var(--color-ink);
+}
+
+.field::placeholder {
+  color: var(--color-ash);
+}
+
+.field:disabled {
+  color: var(--color-ash);
+  cursor: not-allowed;
+}
+
+/* Actions are ruled boxes that invert on hover — no rounded corners, no shadow. */
+.action {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-widest);
+  padding: 0.9rem 1.4rem;
+  border: 1px solid var(--color-ink);
+  color: var(--color-ink);
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background-color 0.5s var(--ease-arch),
+    color 0.5s var(--ease-arch),
+    opacity 0.5s var(--ease-arch);
+}
+
+.action:hover:not(:disabled) {
+  background-color: var(--color-ink);
+  color: var(--color-paper);
+}
+
+.action:disabled {
+  border-color: var(--color-line);
+  color: var(--color-ash);
+  cursor: not-allowed;
+}
+
+/* Scroll reveal — content stays put under reduced motion. */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  animation: reveal 1s var(--ease-arch) forwards;
+}
+
+@keyframes reveal {
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

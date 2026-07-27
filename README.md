@@ -1,101 +1,138 @@
 # Picaso Token
 
-> **Archived, January 2023. Unaudited. Do not deploy.**
-> This repository is preserved as a portfolio artifact, not maintained as a product.
-> See [`ROADMAP.md`](ROADMAP.md) for the full assessment behind that decision.
+> **Unaudited demonstration code. Do not deploy to mainnet.**
+> Modernized and corrected in 2026 (see [`ROADMAP.md`](ROADMAP.md) M2). The reserve
+> accounting and the Bancor integration have never been audited.
 
-A single-contract Solidity demo of a **collateralized-NFT** pattern:
+An ERC721 position backed by an ERC20 deposit:
 
-- `createNft(tokenAddress, tokenAmount)` — transfers an ERC20 into the contract and mints
-  a `PicasoToken` (PCT) ERC721 recording the deposited token and amount.
-- `liquidateNft(tokenId, tokenAddress, expectedAmount)` — swaps the deposited ERC20 for a
-  different one through Bancor's `IBancorNetwork` and burns the NFT.
-- `getTokenAddressForToken` / `getTokenAmountForToken` / `exists` — read the position
-  behind a token id.
+- **`createNft(tokenAddress, tokenAmount)`** — pulls the ERC20 into the contract and mints a
+  `PicasoToken` (PCT) recording the position. The amount stored is what *actually arrived*,
+  so a fee-on-transfer token cannot mint a position claiming more collateral than exists.
+- **`liquidateNft(tokenId, targetToken, minReturn)`** — the position's **owner** burns it and
+  the deposit is swapped through Bancor for `targetToken`, with the proceeds sent **to the
+  caller**. `minReturn` is the caller's slippage floor and is passed straight to Bancor.
+- **`getTokenAddressForToken` / `getTokenAmountForToken` / `exists`** — read a position.
 
 ```
-contracts/PicasoToken.sol   the ERC721 + deposit/redeem logic
-Interfaces/IBancor.sol      minimal IContractRegistry / IBancorNetwork interface
-scripts/deploy.ts           deployment script
-test/1.PicasoToken.ts       mainnet-fork tests (see "Running it" below)
+contracts/PicasoToken.sol            the ERC721 + deposit/redeem logic
+contracts/interfaces/IBancor.sol     minimal IContractRegistry / IBancorNetwork
+contracts/mocks/                     test doubles: ERC20, fee-on-transfer ERC20, Bancor, registry
+test/PicasoToken.test.ts             24 hermetic tests, 100% line coverage of PicasoToken.sol
+scripts/deploy.ts                    deployment (registry address via CONTRACT_REGISTRY)
+scripts/deploy-demo.ts               deploys the whole mock world + writes addresses for the UI
+scripts/export-abi.mjs               copies compiled ABIs into the frontend
+frontend/                            Next.js dapp (npm workspace)
 ```
-
-## Known defects
-
-These are recorded rather than fixed — the contract is frozen and was never audited.
-Anyone reading this for the pattern rather than the code should know:
-
-1. **`liquidateNft` has no ownership check.** It requires only that the token id exists,
-   so any caller can burn any holder's NFT and trigger their swap.
-2. **Swap proceeds never reach the user.** `convertByPath` is called with
-   `_beneficiary = address(0)`, which Bancor resolves to `msg.sender` — the PicasoToken
-   contract itself. There is no transfer to the caller and no withdrawal function, so
-   redeemed tokens are stranded in the contract.
-3. **`_expectedAmount` is not an effective slippage floor.** It is checked against the
-   freshly quoted rate, and that quote — not the user's figure — is then passed as
-   `_minReturn`, so any movement between quote and execution reverts.
-4. **`safeApprove` reverts on a non-zero allowance** (OpenZeppelin 4.x), so a second
-   liquidation of the same ERC20 fails.
-5. **Positions are not cleared on burn** — `positions[tokenId]` outlives the NFT.
-
-Reserve accounting was never audited, and there is no reentrancy guard on `liquidateNft`.
-
-## Frozen toolchain
-
-Pinned deliberately at the versions this was built and last verified against in 2023.
-It has **not** been upgraded past this point, and Dependabot npm version-updates are
-switched off in [`.github/dependabot.yml`](.github/dependabot.yml) for that reason.
-
-| | Version |
-|---|---|
-| Solidity | 0.8.2 |
-| Hardhat | ^2.6.6 |
-| Test stack | `@nomiclabs/hardhat-waffle` ^2.0.1 + `ethereum-waffle` ^3.4.0 (both deprecated in favour of `hardhat-toolbox`) |
-| ethers | ^5.3.0 |
-| TypeChain | ^5.0.0, target `ethers-v5` |
-| OpenZeppelin Contracts | ^4.3.3 |
-| TypeScript | ^4.3.2 |
-
-Modernizing (toolbox, ethers v6, OZ 5.x) would touch every file, and the fork tests would
-still be exercising a Bancor interface that has changed substantially since 2023 — which is
-why it wasn't done.
 
 ## Running it
 
 ```bash
 npm ci
-npm run build     # hardhat clean && hardhat compile — works with no configuration
+npm run build      # contracts -> ABI export -> frontend build
+npm test           # 24 tests, no network access, no credentials
+npm run coverage   # hardhat test --coverage
+npm run lint       # solhint
 ```
 
-`npm test` runs the build and then the suite in `test/1.PicasoToken.ts`. **Those tests are
-skipped unless `ARCHIVENODE_API_KEY` is set**, because they run against a mainnet fork:
-they impersonate a hardcoded whale address and call the live USDT, SUSHI and Bancor
-contracts. Two caveats if you set a key anyway:
+Everything above works from a fresh clone with no configuration. The suite deploys its own
+mock Bancor network and ERC20s, so there is no fork, no impersonated whale, and no
+dependency on a live protocol or an archive node.
 
-- Archivenode, the fork provider this was written against, no longer operates. You would
-  need to point `hardhat.forking.url` at a different archive node.
-- The liquidation tests assert against a Bancor conversion rate hardcoded at the time of
-  writing, so they are unlikely to pass against current chain state regardless.
+## The frontend
 
-`networks.ropsten` is retained only to record the original deployment target. Ropsten was
-shut down in late 2022 and is registered only when both `INFURA_API_KEY` and
-`ROPSTEN_PRIVATE_KEY` are present.
+A Next.js 16 dapp (wagmi + viem, injected connector only — no WalletConnect project id, so
+no account or API key is needed). It lists your positions, opens new ones, and liquidates
+them. Run the whole stack in three terminals:
 
-Copy `.env.example` to `.env` to supply any of these. `.env` is gitignored.
+```bash
+npm run node          # 1. local chain on 127.0.0.1:8545
+npm run deploy:local  # 2. mocks + PicasoToken; writes frontend/src/generated/deployment.json
+npm run dev           # 3. the app on http://localhost:3000
+```
 
-## Credential rotation checklist
+Then point your wallet at `http://127.0.0.1:8545` (chain 31337) and import a Hardhat test
+account. Without a deployment the app says so and prints these steps rather than failing.
 
-This repository is public, and `.env` was committed with **real values** in
-`511634d` (2023-01-06); `d0405f0` blanked them but did not remove them from history.
-The Archivenode key was additionally hardcoded in `hardhat.config.ts` on `main` until this
-commit. All four should be treated as compromised:
+Two things worth knowing:
 
-- [ ] **Ropsten private key** — if that address was ever funded, or the key reused anywhere
-      else (including mainnet), move any funds and stop using it. This is the one that
-      matters; the rest are rate-limit keys.
-- [ ] **Infura API key** — revoke/regenerate at https://app.infura.io
-- [ ] **Etherscan API key** — revoke/regenerate at https://etherscan.io/myapikey
-- [ ] **Archivenode API key** — no longer operable, but revoke if the account still exists.
+- **Use `localhost`, not `127.0.0.1`, in the browser during development.** Next's dev server
+  blocks cross-origin dev resources, and the two hostnames are different origins to it — hit
+  `127.0.0.1` and the client bundle never loads, so the page renders but never hydrates.
+  Irrelevant to the production build, which is a static export.
+- The frontend imports its ABI from `frontend/src/generated/abi.ts`, regenerated by
+  `npm run gen` (which the root build runs). It never keeps its own copy, so the UI cannot
+  silently drift from the contract it calls.
 
-Scrubbing the working tree does not scrub git history. A clean history would require
-`git filter-repo` plus a GitHub cache-purge request — a manual operation, not done here.
+### Why it only talks to a mock
+
+Bancor's real `IContractRegistry` exists only on mainnet, and this contract is unaudited.
+There is therefore nowhere responsible to point a production deployment, so the app is
+limited to the local chain and Sepolia, both running the mock Bancor from
+`scripts/deploy-demo.ts`. A "connect to mainnet" button would be a bug, not a feature.
+
+### Hosting
+
+The app is `output: "export"` — a pure client-side bundle with no server component — so any
+static host serves it. It is a **demo UI against a local chain**, so hosting it publicly is
+mostly a portfolio exercise; nobody else's wallet can use it unless they run the node too.
+
+| Host | Setup | Notes |
+|---|---|---|
+| **Vercel** (recommended) | Import the repo, set **Root Directory** to `frontend`, build `npm run build` | Zero-config Next; per-PR preview deploys |
+| **GitHub Pages** | Publish `frontend/out/` via Actions | Free, repo is already here; needs `basePath` if served from a subpath |
+| **Netlify** | Base `frontend`, publish `frontend/out` | Equivalent to Vercel here |
+| **Fleek / IPFS** | Pin `frontend/out/` | Idiomatic for dapps; real friction for a demo |
+
+Because the root build compiles contracts before the Next build, a host building from the
+repo root gets the ABI generated automatically. Building with Root Directory `frontend`
+instead uses the committed `frontend/src/generated/abi.ts`.
+
+`.env` is only needed to touch a live network — copy `.env.example` if you do. Hardhat 3
+resolves those values lazily via `configVariable`, so an unset variable costs nothing until
+you actually target that network.
+
+## Stack
+
+| | Version |
+|---|---|
+| Solidity | 0.8.28, optimizer on (200 runs) |
+| Hardhat | ^3.8 with `@nomicfoundation/hardhat-toolbox-mocha-ethers` |
+| ethers | ^6.17 |
+| OpenZeppelin Contracts | ^5.6 |
+| TypeScript | ^5.6 (ESM) |
+| Tests | mocha + chai, hermetic mocks |
+
+## What was wrong before 2026
+
+The original January 2023 version is preserved in git history. It had six defects worth
+knowing about if you are reading this repository as an example of the pattern:
+
+1. **`liquidateNft` had no ownership check** — any caller could burn any holder's NFT.
+2. **Swap proceeds never reached the user.** `convertByPath` was called with
+   `_beneficiary = address(0)`, which Bancor resolves to `msg.sender` — the contract itself.
+   With no withdrawal function, redeemed tokens were stranded permanently.
+3. **The slippage floor was inert.** The caller's `_expectedAmount` was checked against the
+   quote and then discarded; the quote was passed as `_minReturn`, so any movement between
+   quote and execution reverted.
+4. **`safeApprove` reverted on a second liquidation** of the same ERC20 (non-zero allowance).
+5. **Positions were never cleared on burn.**
+6. **No reentrancy guard**, no events, and `createNft` was `payable` while ignoring
+   `msg.value`, so any ETH sent was trapped.
+
+All six are fixed and each has a regression test. The contract now uses custom errors,
+emits `NftCreated`/`NftLiquidated`, and burns-and-clears before the external swap call.
+
+## Security note
+
+`.env` was tracked from 2023 until 2026 because `.gitignore` said `env` rather than `.env`,
+and was committed with a real Ropsten private key plus Infura, Etherscan and Archivenode API
+keys (`511634d`, blanked but not removed in `d0405f0`). An Archivenode key was also hardcoded
+in `hardhat.config.ts`. **All four are burned and should be treated as compromised** —
+scrubbing the working tree does not scrub history. Rotation is the repository owner's action:
+
+- [ ] Ropsten private key — if that address was ever funded or the key reused anywhere
+      (including mainnet), move funds and stop using it.
+- [ ] Infura API key — https://app.infura.io
+- [ ] Etherscan API key — https://etherscan.io/myapikey
+- [ ] Archivenode API key — service defunct; revoke if the account still exists.
