@@ -10,6 +10,7 @@ import {
 } from "wagmi";
 import { erc20Abi, picasoTokenAbi } from "@/generated/abi";
 import { deployment } from "@/lib/deployment";
+import { useMounted } from "@/lib/useMounted";
 import { SectionHeader } from "./SectionHeader";
 
 /**
@@ -19,6 +20,10 @@ import { SectionHeader } from "./SectionHeader";
  */
 export function CreatePosition({ onDone }: { onDone: () => void }) {
   const { address, isConnected } = useAccount();
+  // Wallet state is client-only; see useMounted. Everything below gates on
+  // `ready` rather than isConnected so the first client render matches the
+  // prerendered HTML.
+  const ready = useMounted() && isConnected;
   const picaso = deployment.picasoToken;
   const [tokenIndex, setTokenIndex] = useState(0);
   const [amount, setAmount] = useState("");
@@ -78,6 +83,31 @@ export function CreatePosition({ onDone }: { onDone: () => void }) {
   const insufficient =
     parsed !== null && typeof balance === "bigint" && balance < parsed;
   const busy = isPending || isMining;
+
+  // One line that always answers "what do I do next". Every disabled button
+  // below has a reason here; a dead control with no explanation reads as a
+  // broken app. Ordered most-blocking first.
+  const guidance = (() => {
+    if (!ready) return "Connect a wallet to open a position.";
+    if (!token || !picaso) return "No deployment found. Run `npm run deploy:local` first.";
+    if (isPending) {
+      return pending === "approve"
+        ? "Confirm the approval in your wallet."
+        : "Confirm the deposit in your wallet.";
+    }
+    if (isMining) return "Waiting for the transaction to be mined…";
+    if (typeof balance === "bigint" && balance === 0n) {
+      return `No ${token.symbol} on this chain — fund this address to continue.`;
+    }
+    if (parsed === null) return `Enter an amount of ${token.symbol} to deposit.`;
+    if (insufficient && typeof balance === "bigint") {
+      return `Reduce the amount to at most ${formatUnits(balance, token.decimals)} ${token.symbol}.`;
+    }
+    if (needsApproval) {
+      return `Step 1 of 2 — approve ${amount} ${token.symbol} for the contract.`;
+    }
+    return `Approved. Step 2 of 2 — mint a position against ${amount} ${token.symbol}.`;
+  })();
 
   const approve = () => {
     if (!token || !picaso || parsed === null) return;
@@ -147,7 +177,7 @@ export function CreatePosition({ onDone }: { onDone: () => void }) {
             placeholder="0.00"
             value={amount}
             onChange={(event) => setAmount(event.target.value)}
-            disabled={!isConnected || busy}
+            disabled={!ready || busy}
           />
           {insufficient ? (
             <p className="label mt-3 text-ink">Exceeds balance</p>
@@ -159,7 +189,7 @@ export function CreatePosition({ onDone }: { onDone: () => void }) {
         <button
           type="button"
           className="action"
-          disabled={!isConnected || parsed === null || insufficient || busy || !needsApproval}
+          disabled={!ready || parsed === null || insufficient || busy || !needsApproval}
           onClick={approve}
         >
           {busy && pending === "approve" ? "Approving…" : "01 — Approve"}
@@ -168,12 +198,14 @@ export function CreatePosition({ onDone }: { onDone: () => void }) {
         <button
           type="button"
           className="action"
-          disabled={!isConnected || parsed === null || insufficient || busy || needsApproval}
+          disabled={!ready || parsed === null || insufficient || busy || needsApproval}
           onClick={deposit}
         >
           {busy && pending === "deposit" ? "Depositing…" : "02 — Mint position"}
         </button>
       </div>
+
+      <p className="mt-4 font-mono text-xs text-graphite">{guidance}</p>
 
       {error ? (
         <p className="mt-6 max-w-xl font-mono text-xs leading-relaxed text-graphite">

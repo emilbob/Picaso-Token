@@ -9,8 +9,9 @@ import {
   useWaitForTransactionReceipt,
   useWriteContract,
 } from "wagmi";
-import { picasoTokenAbi } from "@/generated/abi";
+import { bancorNetworkAbi, picasoTokenAbi } from "@/generated/abi";
 import { deployment, type TokenInfo } from "@/lib/deployment";
+import { useMounted } from "@/lib/useMounted";
 import { SectionHeader } from "./SectionHeader";
 
 type Position = {
@@ -39,6 +40,8 @@ function formatAmount(amount: bigint, address: string) {
  */
 export function PositionList({ refreshKey }: { refreshKey: number }) {
   const { address, isConnected } = useAccount();
+  // Wallet state is client-only; see useMounted.
+  const ready = useMounted() && isConnected;
   const picaso = deployment.picasoToken;
 
   const { data: totalMinted, refetch: refetchTotal } = useReadContract({
@@ -133,7 +136,7 @@ export function PositionList({ refreshKey }: { refreshKey: number }) {
         title="Ledger."
       />
 
-      {!isConnected ? (
+      {!ready ? (
         <p className="mt-10 max-w-md text-graphite">
           Connect a wallet to read your positions.
         </p>
@@ -193,6 +196,31 @@ function PositionRow({
   })();
 
   const busy = isPending || isMining;
+
+  // Quote the redemption through the same conversionPath -> rateByPath the
+  // contract walks, so the figure shown is the one liquidateNft will act on.
+  const bancor = deployment.bancorNetwork;
+  const { data: path } = useReadContract({
+    abi: bancorNetworkAbi,
+    address: bancor ?? undefined,
+    functionName: "conversionPath",
+    args: target ? [position.tokenAddress, target.address] : undefined,
+    query: { enabled: Boolean(bancor && target) },
+  });
+  const { data: quote } = useReadContract({
+    abi: bancorNetworkAbi,
+    address: bancor ?? undefined,
+    functionName: "rateByPath",
+    args: path ? [path, position.tokenAmount] : undefined,
+    query: { enabled: Boolean(bancor && path) },
+  });
+
+  const quoteText =
+    typeof quote === "bigint" && target
+      ? `${formatUnits(quote, target.decimals)} ${target.symbol}`
+      : null;
+  const floorTooHigh =
+    typeof quote === "bigint" && parsedMin !== null && parsedMin > quote;
 
   const liquidate = () => {
     if (!picaso || !target || parsedMin === null) return;
@@ -266,6 +294,20 @@ function PositionRow({
           </button>
         </div>
       </div>
+
+      <p className="mt-4 max-w-2xl font-mono text-xs leading-relaxed text-graphite">
+        {isPending
+          ? "Confirm the redemption in your wallet."
+          : isMining
+            ? "Waiting for the transaction to be mined…"
+            : floorTooHigh
+              ? `Min return is above the current quote of ${quoteText} — this would revert.`
+              : `Burning #${position.tokenId.toString()} swaps the collateral to ${
+                  target?.symbol ?? "—"
+                } and pays you directly.${
+                  quoteText ? ` Quote at the current rate — ${quoteText}.` : ""
+                } Min return is your slippage floor; 0 accepts any amount.`}
+      </p>
 
       {error ? (
         <p className="mt-4 max-w-2xl font-mono text-xs leading-relaxed text-graphite">

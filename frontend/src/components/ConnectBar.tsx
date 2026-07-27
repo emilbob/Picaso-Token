@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
 import { deployment } from "@/lib/deployment";
+import { useMounted } from "@/lib/useMounted";
+import { config } from "@/lib/wagmi";
 
 function shorten(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`;
@@ -17,7 +19,9 @@ export function ConnectBar() {
   const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
+  const { switchChain, isPending: isSwitching } = useSwitchChain();
   const [clock, setClock] = useState<string>("--:--:--");
+  const mounted = useMounted();
 
   useEffect(() => {
     const tick = () => setClock(new Date().toLocaleTimeString("en-GB", { hour12: false }));
@@ -27,7 +31,11 @@ export function ConnectBar() {
   }, []);
 
   const injectedConnector = connectors.find((c) => c.type === "injected") ?? connectors[0];
-  const wrongChain = isConnected && deployment.chainId !== 0 && chainId !== deployment.chainId;
+  // Narrowed to a configured chain: switchChain only accepts those, and if the
+  // deployment sits on a chain wagmi does not know, offering the button lies.
+  const targetChain = config.chains.find((c) => c.id === deployment.chainId);
+  const wrongChain =
+    mounted && isConnected && deployment.chainId !== 0 && chainId !== deployment.chainId;
 
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-paper/80 backdrop-blur-md">
@@ -43,12 +51,10 @@ export function ConnectBar() {
           <span className="label hidden md:inline" suppressHydrationWarning>
             {clock}
           </span>
-          {/* Wallet state is client-only, so this cannot match the prerendered
-              HTML — same reason the clock above suppresses the warning. */}
-          <span className="label hidden md:inline" suppressHydrationWarning>
-            Chain {chainId ?? "—"}
+          <span className="label hidden md:inline">
+            Chain {mounted ? (chainId ?? "—") : "—"}
           </span>
-          {isConnected && address ? (
+          {mounted && isConnected && address ? (
             <button type="button" className="action" onClick={() => disconnect()}>
               {shorten(address)} — Disconnect
             </button>
@@ -56,7 +62,7 @@ export function ConnectBar() {
             <button
               type="button"
               className="action"
-              disabled={isPending || injectedConnector === undefined}
+              disabled={!mounted || isPending || injectedConnector === undefined}
               onClick={() => injectedConnector && connect({ connector: injectedConnector })}
             >
               {isPending ? "Connecting…" : "Connect Wallet"}
@@ -66,10 +72,20 @@ export function ConnectBar() {
       </div>
 
       {wrongChain ? (
-        <div className="border-t border-line bg-bone px-6 py-2 text-center">
+        <div className="flex flex-wrap items-center justify-center gap-4 border-t border-line bg-bone px-6 py-2">
           <span className="label text-ink">
-            Wrong network — switch your wallet to chain {deployment.chainId}
+            Wrong network — this app runs on chain {deployment.chainId}
           </span>
+          {targetChain ? (
+            <button
+              type="button"
+              className="action"
+              disabled={isSwitching}
+              onClick={() => switchChain({ chainId: targetChain.id })}
+            >
+              {isSwitching ? "Switching…" : `Switch to ${targetChain.name}`}
+            </button>
+          ) : null}
         </div>
       ) : null}
     </header>
