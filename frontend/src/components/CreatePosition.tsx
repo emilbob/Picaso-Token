@@ -22,6 +22,9 @@ export function CreatePosition({ onDone }: { onDone: () => void }) {
   const picaso = deployment.picasoToken;
   const [tokenIndex, setTokenIndex] = useState(0);
   const [amount, setAmount] = useState("");
+  // Which of the two steps is in flight. approve and deposit share one
+  // useWriteContract, so the receipt hook alone cannot tell them apart.
+  const [pending, setPending] = useState<"approve" | "deposit" | null>(null);
 
   const token = deployment.tokens[tokenIndex];
   const parsed = (() => {
@@ -56,12 +59,19 @@ export function CreatePosition({ onDone }: { onDone: () => void }) {
   // A mined deposit clears the form and refreshes the ledger. This has to be an
   // effect, not a render-time branch — calling onDone()/reset() during render
   // updates state mid-render and React throws.
+  //
+  // Only a deposit clears the amount. A mined approval must keep it: it is the
+  // input the deposit step is about to consume, and wiping it strands the user
+  // on an empty form with both buttons disabled and nothing saying why.
   useEffect(() => {
     if (!isSuccess) return;
-    onDone();
+    if (pending === "deposit") {
+      onDone();
+      setAmount("");
+    }
     reset();
-    setAmount("");
-  }, [isSuccess, onDone, reset]);
+    setPending(null);
+  }, [isSuccess, onDone, reset, pending]);
 
   const needsApproval =
     parsed !== null && typeof allowance === "bigint" && allowance < parsed;
@@ -71,6 +81,7 @@ export function CreatePosition({ onDone }: { onDone: () => void }) {
 
   const approve = () => {
     if (!token || !picaso || parsed === null) return;
+    setPending("approve");
     writeContract({
       abi: erc20Abi,
       address: token.address,
@@ -81,6 +92,7 @@ export function CreatePosition({ onDone }: { onDone: () => void }) {
 
   const deposit = () => {
     if (!token || !picaso || parsed === null) return;
+    setPending("deposit");
     writeContract({
       abi: picasoTokenAbi,
       address: picaso,
@@ -150,7 +162,7 @@ export function CreatePosition({ onDone }: { onDone: () => void }) {
           disabled={!isConnected || parsed === null || insufficient || busy || !needsApproval}
           onClick={approve}
         >
-          {busy && needsApproval ? "Approving…" : "01 — Approve"}
+          {busy && pending === "approve" ? "Approving…" : "01 — Approve"}
         </button>
         <span aria-hidden className="h-px w-10 bg-line" />
         <button
@@ -159,7 +171,7 @@ export function CreatePosition({ onDone }: { onDone: () => void }) {
           disabled={!isConnected || parsed === null || insufficient || busy || needsApproval}
           onClick={deposit}
         >
-          {busy && !needsApproval ? "Depositing…" : "02 — Mint position"}
+          {busy && pending === "deposit" ? "Depositing…" : "02 — Mint position"}
         </button>
       </div>
 

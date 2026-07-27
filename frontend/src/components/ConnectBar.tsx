@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useAccount, useChainId, useConnect, useDisconnect } from "wagmi";
+import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { deployment } from "@/lib/deployment";
 
 function shorten(address: string) {
@@ -10,10 +10,13 @@ function shorten(address: string) {
 
 /** Frosted header with telemetry: a live clock, the chain, and the account. */
 export function ConnectBar() {
-  const { address, isConnected } = useAccount();
+  // useAccount().chainId is the connector's actual chain. useChainId() reports the
+  // config's chain, which silently falls back to the first configured chain when the
+  // wallet is on one we don't list — so it renders 31337 for a wallet on mainnet and
+  // the wrongChain guard below can never fire for the chains it exists to catch.
+  const { address, isConnected, chainId } = useAccount();
   const { connect, connectors, isPending } = useConnect();
   const { disconnect } = useDisconnect();
-  const chainId = useChainId();
   const [clock, setClock] = useState<string>("--:--:--");
 
   useEffect(() => {
@@ -40,7 +43,11 @@ export function ConnectBar() {
           <span className="label hidden md:inline" suppressHydrationWarning>
             {clock}
           </span>
-          <span className="label hidden md:inline">Chain {chainId}</span>
+          {/* Wallet state is client-only, so this cannot match the prerendered
+              HTML — same reason the clock above suppresses the warning. */}
+          <span className="label hidden md:inline" suppressHydrationWarning>
+            Chain {chainId ?? "—"}
+          </span>
           {isConnected && address ? (
             <button type="button" className="action" onClick={() => disconnect()}>
               {shorten(address)} — Disconnect
