@@ -10,6 +10,7 @@ export type Deployment = {
   chainId: number;
   deployedAt: string | null;
   picasoToken: `0x${string}` | null;
+  bancorNetwork: `0x${string}` | null;
   tokens: TokenInfo[];
 };
 
@@ -22,6 +23,7 @@ export const deployment: Deployment = {
   chainId: raw.chainId,
   deployedAt: raw.deployedAt,
   picasoToken: (raw.contracts.picasoToken as `0x${string}` | null) ?? null,
+  bancorNetwork: (raw.contracts.bancorNetwork as `0x${string}` | null) ?? null,
   tokens: (raw.tokens as TokenInfo[]) ?? [],
 };
 

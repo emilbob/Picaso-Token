@@ -16,6 +16,9 @@ const outFile = join(root, "frontend", "src", "generated", "abi.ts");
 const CONTRACTS = [
   ["picasoTokenAbi", "contracts/PicasoToken.sol/PicasoToken.json"],
   ["erc20Abi", "contracts/mocks/MockERC20.sol/MockERC20.json"],
+  // The UI quotes a redemption through the same conversionPath/rateByPath the
+  // contract uses, so the figure it shows is the one liquidateNft will get.
+  ["bancorNetworkAbi", "contracts/interfaces/IBancor.sol/IBancorNetwork.json"],
 ];
 
 async function readAbi(artifactPath) {
