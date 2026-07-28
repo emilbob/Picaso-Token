@@ -174,7 +174,10 @@ function PositionRow({
     (t) => t.address.toLowerCase() !== position.tokenAddress.toLowerCase(),
   );
   const [targetIndex, setTargetIndex] = useState(0);
-  const [minReturn, setMinReturn] = useState("0");
+  const [minReturn, setMinReturn] = useState("");
+  // Once the field is edited the quote stops driving it, so a default can never
+  // overwrite a floor the user chose deliberately.
+  const [minReturnTouched, setMinReturnTouched] = useState(false);
   const target = others[targetIndex];
 
   const { writeContract, data: hash, isPending, error, reset } = useWriteContract();
@@ -214,6 +217,21 @@ function PositionRow({
     args: path ? [path, position.tokenAmount] : undefined,
     query: { enabled: Boolean(bancor && path) },
   });
+
+  // Default the floor to 1% under the quote rather than 0. The contract passes
+  // this straight to Bancor, so a 0 floor accepts any return at all — it hands
+  // back the very guarantee the slippage fix established. Editable, and the
+  // user can still type 0 deliberately.
+  const SLIPPAGE_TOLERANCE_BPS = 100n;
+  const defaultFloor =
+    typeof quote === "bigint" && quote > 0n
+      ? (quote * (10_000n - SLIPPAGE_TOLERANCE_BPS)) / 10_000n
+      : null;
+
+  useEffect(() => {
+    if (minReturnTouched || defaultFloor === null || target === undefined) return;
+    setMinReturn(formatUnits(defaultFloor, target.decimals));
+  }, [defaultFloor, minReturnTouched, target]);
 
   const quoteText =
     typeof quote === "bigint" && target
@@ -279,7 +297,10 @@ function PositionRow({
               className="field mt-3"
               inputMode="decimal"
               value={minReturn}
-              onChange={(event) => setMinReturn(event.target.value)}
+              onChange={(event) => {
+                setMinReturnTouched(true);
+                setMinReturn(event.target.value);
+              }}
               disabled={busy}
             />
           </div>
@@ -302,11 +323,15 @@ function PositionRow({
             ? "Waiting for the transaction to be mined…"
             : floorTooHigh
               ? `Min return is above the current quote of ${quoteText} — this would revert.`
-              : `Burning #${position.tokenId.toString()} swaps the collateral to ${
-                  target?.symbol ?? "—"
-                } and pays you directly.${
-                  quoteText ? ` Quote at the current rate — ${quoteText}.` : ""
-                } Min return is your slippage floor; 0 accepts any amount.`}
+              : parsedMin === 0n
+                ? `No slippage floor set — this accepts any return, including one far below the ${
+                    quoteText ?? "current"
+                  } quote.`
+                : `Burning #${position.tokenId.toString()} swaps the collateral to ${
+                    target?.symbol ?? "—"
+                  } and pays you directly.${
+                    quoteText ? ` Quote at the current rate — ${quoteText}.` : ""
+                  } Min return is your slippage floor, defaulted to 1% under the quote.`}
       </p>
 
       {error ? (
