@@ -1,10 +1,21 @@
 {
-  "chainId": 0,
-  "deployedAt": null,
+  "chainId": 11155111,
+  "deployedAt": "2026-07-28T20:23:36.858Z",
   "contracts": {
-    "picasoToken": null,
-    "bancorNetwork": null,
-    "contractRegistry": null
+    "picasoToken": "0x2a29c88093fF634334765eF239a77B94e81C2D15",
+    "bancorNetwork": "0xa3076c5f95C83EfdFD91b2Ea373D18D17a4F7064",
+    "contractRegistry": "0xeBc9D26AA3B68b2D0C7D99580eD879bdC4D5d713"
   },
-  "tokens": []
+  "tokens": [
+    {
+      "symbol": "USDC",
+      "address": "0xa48d556009A3acb06ddF15Ae27Ff74BF74a15e88",
+      "decimals": 6
+    },
+    {
+      "symbol": "SUSHI",
+      "address": "0x1D020052b687BcdC4D7e27aD62766661D8833895",
+      "decimals": 18
+    }
+  ]
 }

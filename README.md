@@ -43,7 +43,13 @@ dependency on a live protocol or an archive node.
 
 A Next.js 16 dapp (wagmi + viem, injected connector only — no WalletConnect project id, so
 no account or API key is needed). It lists your positions, opens new ones, and liquidates
-them. Run the whole stack in three terminals:
+them.
+
+**Live: [picaso-token.vercel.app](https://picaso-token.vercel.app)** — pointed at the Sepolia
+demo deployment. `MockERC20.mint` has no access control, so anyone on Sepolia can mint
+themselves collateral and try the full deposit → mint → redeem cycle against the mock Bancor.
+
+To run it locally instead, use three terminals:
 
 ```bash
 npm run node          # 1. local chain on 127.0.0.1:8545
@@ -53,6 +59,10 @@ npm run dev           # 3. the app on http://localhost:3000
 
 Then point your wallet at `http://127.0.0.1:8545` (chain 31337) and import a Hardhat test
 account. Without a deployment the app says so and prints these steps rather than failing.
+
+Note that `deploy:local` **overwrites** the committed `deployment.json`, which points at
+Sepolia. Don't commit that overwrite — it would aim the hosted app at a chain nobody else can
+reach. `git checkout frontend/src/generated/deployment.json` puts it back.
 
 Two things worth knowing:
 

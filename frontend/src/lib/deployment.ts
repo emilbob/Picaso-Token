@@ -15,9 +15,16 @@ export type Deployment = {
 };
 
 /**
- * Addresses written by `npm run deploy:local`. The checked-in file is a blank
- * placeholder so the frontend always builds on a fresh clone — the UI detects
- * the missing deployment and says so rather than failing.
+ * Addresses written by `scripts/deploy-demo.ts`. The checked-in file points at
+ * the **Sepolia** demo deployment, which is what the hosted build serves.
+ *
+ * `npm run deploy:local` overwrites it with local-chain addresses — useful for
+ * development, but do not commit that: it would point the hosted app at a chain
+ * nobody else can reach. `git checkout frontend/src/generated/deployment.json`
+ * restores the Sepolia one.
+ *
+ * The shape still tolerates a blank file (`chainId: 0`, null addresses), and the
+ * UI detects that and prints setup steps rather than failing.
  */
 export const deployment: Deployment = {
   chainId: raw.chainId,
