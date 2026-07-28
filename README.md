@@ -128,11 +128,24 @@ emits `NftCreated`/`NftLiquidated`, and burns-and-clears before the external swa
 `.env` was tracked from 2023 until 2026 because `.gitignore` said `env` rather than `.env`,
 and was committed with a real Ropsten private key plus Infura, Etherscan and Archivenode API
 keys (`511634d`, blanked but not removed in `d0405f0`). An Archivenode key was also hardcoded
-in `hardhat.config.ts`. **All four are burned and should be treated as compromised** —
-scrubbing the working tree does not scrub history. Rotation is the repository owner's action:
+in `hardhat.config.ts`. All four are burned — scrubbing the working tree does not scrub
+history, so they remain readable in this repo forever.
 
-- [ ] Ropsten private key — if that address was ever funded or the key reused anywhere
-      (including mainnet), move funds and stop using it.
-- [ ] Infura API key — https://app.infura.io
-- [ ] Etherscan API key — https://etherscan.io/myapikey
-- [ ] Archivenode API key — service defunct; revoke if the account still exists.
+**Resolved 2026-07-28.** Each was checked rather than assumed, and none turned out to be a
+live compromise:
+
+- [x] **Ropsten private key** — address `0x517df1898A17359e93Fb290423E098F0DE2DeD07`.
+      **Verified unused**: zero balance, zero nonce, no funding transaction, and no activity
+      on any chain Etherscan indexes. The key never signed anything outside dead Ropsten, so
+      there was nothing to move. Retired regardless; do not reuse it.
+- [x] **Infura API key** — no longer present in the account; deleted at some earlier point.
+      Confirmed by comparing against the leaked value rather than assuming.
+- [x] **Etherscan API key** — read-only and rate-limited, so no funds or write access were
+      ever at risk. No Etherscan account exists to revoke it from; the key is orphaned.
+- [x] **Archivenode API key** — service defunct, nothing to revoke.
+
+A history rewrite was deliberately not done: force-pushing a public repo breaks every clone
+and fork, and cannot un-leak values already scraped. Rotation is the remedy, not rewriting.
+
+If you fork this repo, note that the burned values are still in history. They are dead, but
+secret scanners will flag them.
