@@ -18,3 +18,7 @@ frontend/.next
 frontend/out
 frontend/next-env.d.ts
 frontend/tsconfig.tsbuildinfo
+
+# Vercel — local project link, holds the project/org ids
+.vercel
+frontend/.vercel
