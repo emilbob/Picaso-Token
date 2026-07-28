@@ -133,6 +133,13 @@ a project no one intends to operate.
 
 ## Not covered by M1 — needs Emil's direct action
 
+> **Resolved 2026-07-28.** All four values were checked and none was a live compromise; the
+> Ropsten address was *verified* unused (zero balance, zero nonce, no activity on any indexed
+> chain) rather than assumed dangerous. See the security note in [`README.md`](README.md) for
+> the outcome. History was deliberately not rewritten. The rest of this section is the
+> original M1 assessment, kept as a record — note that the Archivenode key it locates in
+> `hardhat.config.ts:21` was removed by M2.
+
 Scrubbing the *current* tree does not remove secrets from *git history*, and this routine
 will not force-push or rewrite history unilaterally. The Ropsten private key, Infura key,
 Etherscan key (git history, commits `511634d`/`d0405f0`), and the Archivenode key (current
