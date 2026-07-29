@@ -97,8 +97,9 @@ limited to the local chain and Sepolia, both running the mock Bancor from
 ### Hosting
 
 The app is `output: "export"` — a pure client-side bundle with no server component — so any
-static host serves it. It is a **demo UI against a local chain**, so hosting it publicly is
-mostly a portfolio exercise; nobody else's wallet can use it unless they run the node too.
+static host serves it. The deployed copy points at **Sepolia**, so any visitor with a wallet on
+that network can use it: the mocks mint permissionlessly, so they can fund themselves and run
+the whole cycle. Nothing on it is worth anything, which is the point.
 
 | Host | Setup | Notes |
 |---|---|---|
@@ -110,6 +111,16 @@ mostly a portfolio exercise; nobody else's wallet can use it unless they run the
 Because the root build compiles contracts before the Next build, a host building from the
 repo root gets the ABI generated automatically. Building with Root Directory `frontend`
 instead uses the committed `frontend/src/generated/abi.ts`.
+
+The live deployment builds from git with **Root Directory `frontend`**: pushes to `main` go to
+production, pull requests get preview URLs. That directory has no lockfile of its own — the
+`package-lock.json` and the `workspaces` declaration both live at the repo root — so the
+install has to reach above the root directory to resolve dependencies. A manual publish still
+works if the integration is ever disconnected:
+
+```bash
+vercel deploy --prod --cwd frontend
+```
 
 `.env` is only needed to touch a live network — copy `.env.example` if you do. Hardhat 3
 resolves those values lazily via `configVariable`, so an unset variable costs nothing until
