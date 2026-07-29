@@ -49,6 +49,19 @@ them.
 demo deployment. `MockERC20.mint` has no access control, so anyone on Sepolia can mint
 themselves collateral and try the full deposit → mint → redeem cycle against the mock Bancor.
 
+To get that collateral, either use the **Write Contract** tab on the
+[verified mock USDC](https://eth-sepolia.blockscout.com/address/0xa48d556009A3acb06ddF15Ae27Ff74BF74a15e88#code)
+(all five contracts are verified on Blockscout — see [Verification](#verification)), or mint
+from the CLI with a funded account:
+
+```bash
+MINT_TO=0xYourWallet npx hardhat run scripts/mint-demo.ts --network sepolia
+```
+
+`MINT_SYMBOL` (default `USDC`) and `MINT_AMOUNT` (default `10000`, in whole tokens) override
+what and how much. `deploy-demo.ts` only seeds the signers it has, which on a testnet is the
+deployer alone — so any other wallet needs one of these two routes before it can deposit.
+
 To run it locally instead, use three terminals:
 
 ```bash
@@ -101,6 +114,28 @@ instead uses the committed `frontend/src/generated/abi.ts`.
 `.env` is only needed to touch a live network — copy `.env.example` if you do. Hardhat 3
 resolves those values lazily via `configVariable`, so an unset variable costs nothing until
 you actually target that network.
+
+## Verification
+
+All five Sepolia contracts are verified on **Blockscout**, which needs neither an account nor
+an API key:
+
+```bash
+npx hardhat verify blockscout --network sepolia <address> <constructor args>
+```
+
+| Contract | Address | Constructor args |
+|---|---|---|
+| PicasoToken | [`0x2a29c8…2D15`](https://eth-sepolia.blockscout.com/address/0x2a29c88093fF634334765eF239a77B94e81C2D15#code) | the registry address |
+| MockBancorNetwork | [`0xa3076c…7064`](https://eth-sepolia.blockscout.com/address/0xa3076c5f95C83EfdFD91b2Ea373D18D17a4F7064#code) | none |
+| MockContractRegistry | [`0xeBc9D2…D713`](https://eth-sepolia.blockscout.com/address/0xeBc9D26AA3B68b2D0C7D99580eD879bdC4D5d713#code) | none |
+| MockERC20 (USDC, 6dp) | [`0xa48d55…5e88`](https://eth-sepolia.blockscout.com/address/0xa48d556009A3acb06ddF15Ae27Ff74BF74a15e88#code) | `"USD Coin" USDC 6` |
+| MockERC20 (SUSHI, 18dp) | [`0x1D0200…3895`](https://eth-sepolia.blockscout.com/address/0x1D020052b687BcdC4D7e27aD62766661D8833895#code) | `Sushi SUSHI 18` |
+
+`hardhat-verify` also ships `verify sourcify` (keyless) and `verify etherscan`; only the
+Etherscan path needs `ETHERSCAN_API_KEY`, which is why `hardhat.config.ts` reads it lazily.
+Running plain `hardhat verify` tries every enabled provider, so it fails on Etherscan when
+that key is unset — name the provider explicitly to avoid this.
 
 ## Stack
 
