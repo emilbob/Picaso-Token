@@ -53,8 +53,13 @@ export function ThemeToggle() {
       {/* Hairline strokes at the same 1px weight as the rules and the grid — a
           drawn symbol, not a filled glyph. currentColor inherits the label's ash
           and its hover to ink, so the icon needs no colours of its own.
-          Before mount the stored preference is unknown, so neither symbol is
-          honest: a bare circle stands in, the way the chain reads "—". */}
+
+          The symbol is the DESTINATION, not the current state: a control shows
+          what it will do, and the theme it is currently in is already obvious
+          from every pixel around it. So dark shows the sun it switches to, and
+          it matches the aria-label, which says "switch to" either way.
+          Before mount the choice is unknown, so neither symbol is honest: a
+          bare circle stands in, the way the chain reads "—". */}
       <svg
         width="14"
         height="14"
@@ -70,12 +75,12 @@ export function ThemeToggle() {
         {!mounted ? (
           <circle cx="8" cy="8" r="5" />
         ) : theme === "dark" ? (
-          <path d="M14 8.53A6 6 0 1 1 7.47 2 4.67 4.67 0 0 0 14 8.53Z" />
-        ) : (
           <>
             <circle cx="8" cy="8" r="3.25" />
             <path d="M8 .9v2.1M8 13v2.1M.9 8h2.1M13 8h2.1M3 3l1.5 1.5M11.5 11.5 13 13M13 3l-1.5 1.5M4.5 11.5 3 13" />
           </>
+        ) : (
+          <path d="M14 8.53A6 6 0 1 1 7.47 2 4.67 4.67 0 0 0 14 8.53Z" />
         )}
       </svg>
     </button>
