@@ -65,8 +65,9 @@ export default function Home() {
             <p className="mt-4 max-w-2xl leading-relaxed text-graphite">
               This contract has never been audited and its reserve accounting is
               unverified. It runs here against a <strong className="text-ink">mock</strong>{" "}
-              Bancor network on a local chain. Bancor&rsquo;s real registry exists only on
-              mainnet, and this is not code that belongs on mainnet.
+              Bancor network on a test chain, with tokens that are free to mint and worth
+              nothing. Bancor&rsquo;s real registry exists only on mainnet, and this is not
+              code that belongs on mainnet.
             </p>
           </div>
         </section>

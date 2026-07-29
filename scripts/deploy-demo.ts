@@ -23,9 +23,13 @@ async function main() {
 
   console.log(`Deploying from ${deployer.address} on chain ${chainId}`);
 
+  // Each deployment is awaited before the next is sent. Issuing two and awaiting
+  // them afterwards works against the local node but not a real network: both
+  // transactions are built against the same "latest" nonce, so the second comes
+  // back as `replacement transaction underpriced`.
   const usdc = await ethers.deployContract("MockERC20", ["USD Coin", "USDC", 6]);
-  const sushi = await ethers.deployContract("MockERC20", ["Sushi", "SUSHI", 18]);
   await usdc.waitForDeployment();
+  const sushi = await ethers.deployContract("MockERC20", ["Sushi", "SUSHI", 18]);
   await sushi.waitForDeployment();
 
   const bancor = await ethers.deployContract("MockBancorNetwork");
