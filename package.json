@@ -29,7 +29,8 @@
     "coverage": "hardhat test --coverage",
     "gas": "hardhat test --gas-stats",
     "lint": "solhint \"contracts/**/*.sol\"",
-    "lint:fix": "solhint \"contracts/**/*.sol\" --fix"
+    "lint:fix": "solhint \"contracts/**/*.sol\" --fix",
+    "check:deployment": "node scripts/check-deployment.mjs"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ethers": "^4.0.0",

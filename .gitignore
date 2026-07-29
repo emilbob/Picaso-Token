@@ -22,3 +22,9 @@ frontend/tsconfig.tsbuildinfo
 # Vercel — local project link, holds the project/org ids
 .vercel
 frontend/.vercel
+
+# Playwright — run output, never source
+frontend/test-results
+frontend/playwright-report
+frontend/blob-report
+frontend/.playwright
