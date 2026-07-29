@@ -51,7 +51,7 @@ themselves collateral and try the full deposit → mint → redeem cycle against
 
 To get that collateral, either use the **Write Contract** tab on the
 [verified mock USDC](https://eth-sepolia.blockscout.com/address/0xa48d556009A3acb06ddF15Ae27Ff74BF74a15e88#code)
-(all five contracts are verified on Blockscout — see [Verification](#verification)), or mint
+(all five contracts are verified on both explorers — see [Verification](#verification)), or mint
 from the CLI with a funded account:
 
 ```bash
@@ -128,25 +128,28 @@ you actually target that network.
 
 ## Verification
 
-All five Sepolia contracts are verified on **Blockscout**, which needs neither an account nor
-an API key:
+All five Sepolia contracts are verified on **both Blockscout and Etherscan**. Either explorer's
+**Write Contract** tab will mint you collateral; Blockscout is the one to reach for first,
+because it needs neither an account nor an API key:
 
 ```bash
 npx hardhat verify blockscout --network sepolia <address> <constructor args>
+npx hardhat verify etherscan  --network sepolia <address> <constructor args>
 ```
 
-| Contract | Address | Constructor args |
+| Contract | Constructor args | Verified |
 |---|---|---|
-| PicasoToken | [`0x2a29c8…2D15`](https://eth-sepolia.blockscout.com/address/0x2a29c88093fF634334765eF239a77B94e81C2D15#code) | the registry address |
-| MockBancorNetwork | [`0xa3076c…7064`](https://eth-sepolia.blockscout.com/address/0xa3076c5f95C83EfdFD91b2Ea373D18D17a4F7064#code) | none |
-| MockContractRegistry | [`0xeBc9D2…D713`](https://eth-sepolia.blockscout.com/address/0xeBc9D26AA3B68b2D0C7D99580eD879bdC4D5d713#code) | none |
-| MockERC20 (USDC, 6dp) | [`0xa48d55…5e88`](https://eth-sepolia.blockscout.com/address/0xa48d556009A3acb06ddF15Ae27Ff74BF74a15e88#code) | `"USD Coin" USDC 6` |
-| MockERC20 (SUSHI, 18dp) | [`0x1D0200…3895`](https://eth-sepolia.blockscout.com/address/0x1D020052b687BcdC4D7e27aD62766661D8833895#code) | `Sushi SUSHI 18` |
+| PicasoToken | the registry address | [Blockscout](https://eth-sepolia.blockscout.com/address/0x2a29c88093fF634334765eF239a77B94e81C2D15#code) · [Etherscan](https://sepolia.etherscan.io/address/0x2a29c88093fF634334765eF239a77B94e81C2D15#code) |
+| MockBancorNetwork | none | [Blockscout](https://eth-sepolia.blockscout.com/address/0xa3076c5f95C83EfdFD91b2Ea373D18D17a4F7064#code) · [Etherscan](https://sepolia.etherscan.io/address/0xa3076c5f95C83EfdFD91b2Ea373D18D17a4F7064#code) |
+| MockContractRegistry | none | [Blockscout](https://eth-sepolia.blockscout.com/address/0xeBc9D26AA3B68b2D0C7D99580eD879bdC4D5d713#code) · [Etherscan](https://sepolia.etherscan.io/address/0xeBc9D26AA3B68b2D0C7D99580eD879bdC4D5d713#code) |
+| MockERC20 (USDC, 6dp) | `"USD Coin" USDC 6` | [Blockscout](https://eth-sepolia.blockscout.com/address/0xa48d556009A3acb06ddF15Ae27Ff74BF74a15e88#code) · [Etherscan](https://sepolia.etherscan.io/address/0xa48d556009A3acb06ddF15Ae27Ff74BF74a15e88#code) |
+| MockERC20 (SUSHI, 18dp) | `Sushi SUSHI 18` | [Blockscout](https://eth-sepolia.blockscout.com/address/0x1D020052b687BcdC4D7e27aD62766661D8833895#code) · [Etherscan](https://sepolia.etherscan.io/address/0x1D020052b687BcdC4D7e27aD62766661D8833895#code) |
 
-`hardhat-verify` also ships `verify sourcify` (keyless) and `verify etherscan`; only the
-Etherscan path needs `ETHERSCAN_API_KEY`, which is why `hardhat.config.ts` reads it lazily.
-Running plain `hardhat verify` tries every enabled provider, so it fails on Etherscan when
-that key is unset — name the provider explicitly to avoid this.
+Only the Etherscan path needs `ETHERSCAN_API_KEY`, which is why `hardhat.config.ts` reads it
+lazily — Blockscout and `verify sourcify` are keyless and enabled by default. Running plain
+`hardhat verify` tries every enabled provider, so it fails on the Etherscan leg when that key
+is unset; name the provider explicitly to avoid this. Etherscan matches bytecode across
+contracts, so verifying one `MockERC20` marked the second verified without a second submission.
 
 ## Stack
 
