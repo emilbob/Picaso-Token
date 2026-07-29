@@ -29,15 +29,24 @@ frontend/                            Next.js dapp (npm workspace)
 
 ```bash
 npm ci
-npm run build      # contracts -> ABI export -> frontend build
-npm test           # 24 tests, no network access, no credentials
-npm run coverage   # hardhat test --coverage
-npm run lint       # solhint
+npm run build             # contracts -> ABI export -> frontend build
+npm test                  # 24 tests, no network access, no credentials
+npm run coverage          # hardhat test --coverage
+npm run lint              # solhint
+npm run check:deployment  # the committed deployment.json still aims at Sepolia
+npm --workspace frontend run test:e2e   # browser smoke tests, needs `npm run build` first
 ```
 
 Everything above works from a fresh clone with no configuration. The suite deploys its own
 mock Bancor network and ERC20s, so there is no fork, no impersonated whale, and no
 dependency on a live protocol or an archive node.
+
+The last two guard the frontend, which the contract suite cannot reach. `check:deployment`
+fails if the committed `deployment.json` stops pointing at Sepolia — `npm run deploy:local`
+overwrites it, and committing that would aim the hosted app at `127.0.0.1`, where no visitor
+can follow. The Playwright specs drive the exported bundle: the page renders, the unaudited
+notice is present, the wallet prompts appear before a wallet exists, and the theme follows the
+OS, toggles, and survives a reload. Both run on every pull request.
 
 ## The frontend
 

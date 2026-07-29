@@ -1,0 +1,49 @@
+name: frontend-checks
+
+# The contracts have 23 tests; the UI had none, and the file that aims the
+# hosted app at a chain is a plain JSON blob anyone can overwrite locally.
+# These two jobs cover both. Separate from keep-green, which is a generic
+# build-and-test health check shared across repos.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deployment-guard:
+    name: deployment.json points at Sepolia
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/check-deployment.mjs
+
+  e2e:
+    name: frontend smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Builds contracts → ABI → Next, so the export under test is the one the
+      # root build produces rather than a stale committed bundle.
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - run: npm run test:e2e
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
