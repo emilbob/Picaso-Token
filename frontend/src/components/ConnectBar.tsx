@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, useConnect, useDisconnect, useSwitchChain } from "wagmi";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { deployment } from "@/lib/deployment";
 import { useMounted } from "@/lib/useMounted";
 import { config } from "@/lib/wagmi";
@@ -54,6 +55,7 @@ export function ConnectBar() {
           <span className="label hidden md:inline">
             Chain {mounted ? (chainId ?? "—") : "—"}
           </span>
+          <ThemeToggle />
           {mounted && isConnected && address ? (
             <button type="button" className="action" onClick={() => disconnect()}>
               {shorten(address)} — Disconnect
