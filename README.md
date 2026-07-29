@@ -112,8 +112,11 @@ Because the root build compiles contracts before the Next build, a host building
 repo root gets the ABI generated automatically. Building with Root Directory `frontend`
 instead uses the committed `frontend/src/generated/abi.ts`.
 
-The live deployment is **not** git-integrated — it was published from the CLI, so merging a
-frontend change does nothing until someone runs it again by hand:
+The live deployment builds from git with **Root Directory `frontend`**: pushes to `main` go to
+production, pull requests get preview URLs. That directory has no lockfile of its own — the
+`package-lock.json` and the `workspaces` declaration both live at the repo root — so the
+install has to reach above the root directory to resolve dependencies. A manual publish still
+works if the integration is ever disconnected:
 
 ```bash
 vercel deploy --prod --cwd frontend
